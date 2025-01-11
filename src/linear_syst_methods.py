@@ -40,7 +40,8 @@ def eliminacion_gaussiana(A: np.ndarray) -> np.ndarray:
     if not isinstance(A, np.ndarray):
         logging.debug("Convirtiendo A a numpy array.")
         A = np.array(A)
-    assert A.shape[0] == A.shape[1] - 1, "La matriz A debe ser de tamaño n-by-(n+1)."
+    assert A.shape[
+        0] == A.shape[1] - 1, "La matriz A debe ser de tamaño n-by-(n+1)."
     n = A.shape[0]
 
     for i in range(0, n - 1):  # loop por columna
@@ -98,46 +99,61 @@ def eliminacion_gaussiana(A: np.ndarray) -> np.ndarray:
 # ####################################################################
 def descomposicion_LU(A: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Realiza la descomposición LU de una matriz cuadrada A.
-    [IMPORTANTE] No se realiza pivoteo.
+    No se realiza pivoteo completo, pero se agregará pivoteo parcial para evitar ceros en la diagonal.
 
     ## Parameters
 
-    ``A``: matriz cuadrada de tamaño n-by-n.
+    A: matriz cuadrada de tamaño n-by-n.
 
     ## Return
 
-    ``L``: matriz triangular inferior.
+    L: matriz triangular inferior.
 
-    ``U``: matriz triangular superior. Se obtiene de la matriz ``A`` después de aplicar la eliminación gaussiana.
+    U: matriz triangular superior. Se obtiene de la matriz A después de aplicar la eliminación gaussiana.
     """
 
     A = np.array(
-        A, dtype=float
-    )  # convertir en float, porque si no, puede convertir como entero
+        A, dtype=float)  # Convertir a float para evitar problemas con enteros
 
     assert A.shape[0] == A.shape[1], "La matriz A debe ser cuadrada."
     n = A.shape[0]
 
     L = np.zeros((n, n), dtype=float)
 
+    # Contador de intercambios de filas
+    num_intercambios = 0
+
     for i in range(0, n):  # loop por columna
 
-        # --- deterimnar pivote
+        # --- Verificar que el pivote no sea cero, si es cero, buscar el mayor elemento para hacer el pivoteo parcial
         if A[i, i] == 0:
-            raise ValueError("No existe solución única.")
+            # Realizar pivoteo parcial: buscar el máximo en la columna y cambiar filas
+            max_row = np.argmax(np.abs(A[i:n, i])) + i
+            if max_row != i:
+                # Intercambiar filas
+                A[[i, max_row], :] = A[[max_row, i], :]
+                num_intercambios += 1  # Registrar el intercambio de filas
+                logging.debug(f"Intercambiando filas {i} y {max_row}")
 
         # --- Eliminación: loop por fila
         L[i, i] = 1
         for j in range(i + 1, n):
             m = A[j, i] / A[i, i]
             A[j, i:] = A[j, i:] - m * A[i, i:]
-
             L[j, i] = m
 
         logging.info(f"\n{A}")
 
     if A[n - 1, n - 1] == 0:
-        raise ValueError("No existe solución única.")
+        raise ValueError("No existe solución única, pivote final cero.")
+
+    # El determinante de la matriz es el producto de los elementos diagonales de U,
+    # ajustado por el número de intercambios de filas.
+    det = np.prod(np.diag(A))  # Producto de los elementos diagonales de U
+    if num_intercambios % 2 != 0:
+        det = -det  # Cambiar el signo si hubo un número impar de intercambios
+
+    logging.debug(f"Determinante ajustado por intercambios: {det}")
 
     return L, A
 
